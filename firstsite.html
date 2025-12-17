@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Gemini-Powered Site</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        body {
+            background: radial-gradient(circle at top right, #1e1b4b, #000000);
+            color: white;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <!-- Navigation -->
+    <nav class="p-6 flex justify-between items-center max-w-6xl mx-auto">
+        <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+            GeminiNexus
+        </h1>
+        <div class="space-x-6 hidden md:block">
+            <a href="#" class="hover:text-blue-400 transition">Home</a>
+            <a href="#demo" class="hover:text-blue-400 transition">AI Demo</a>
+            <a href="#" class="hover:text-blue-400 transition">Docs</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="max-w-6xl mx-auto px-6 py-20 text-center">
+        <h2 class="text-5xl md:text-7xl font-extrabold mb-6">Built with <span class="text-blue-500">Intelligence.</span></h2>
+        <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10">
+            This is a fully responsive website starter integrated with the Gemini 2.5 Flash model. 
+            Describe your vision below to see the AI in action.
+        </p>
+        <a href="#demo" class="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-full font-semibold transition shadow-lg shadow-blue-500/20">
+            Try the AI Demo
+        </a>
+    </header>
+
+    <!-- Interactive AI Section -->
+    <section id="demo" class="max-w-4xl mx-auto px-6 py-20">
+        <div class="glass p-8 rounded-3xl shadow-2xl">
+            <h3 class="text-2xl font-bold mb-4">Ask Gemini Anything</h3>
+            
+            <div class="mb-6">
+                <label class="block text-sm text-gray-400 mb-2">Your Gemini API Key (Required for Demo)</label>
+                <input id="api-key" type="password" placeholder="Paste your key here..." 
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-gray-500 mt-2 italic">Get one for free at aistudio.google.com</p>
+            </div>
+
+            <div class="flex flex-col space-y-4">
+                <textarea id="user-input" rows="3" placeholder="Write a poem about coding at midnight..."
+                    class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                
+                <button id="submit-btn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 py-3 rounded-xl font-bold hover:opacity-90 transition">
+                    Generate Response
+                </button>
+            </div>
+
+            <div id="loading" class="hidden mt-6 text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+                <p class="text-blue-400">Gemini is thinking...</p>
+            </div>
+
+            <div id="result-container" class="hidden mt-8 p-6 bg-white/5 rounded-2xl border border-white/5">
+                <h4 class="text-sm font-semibold text-blue-400 uppercase tracking-widest mb-2">Response</h4>
+                <div id="ai-response" class="text-gray-200 leading-relaxed whitespace-pre-wrap"></div>
+            </div>
+            
+            <div id="error-box" class="hidden mt-4 p-4 bg-red-900/30 border border-red-500/50 rounded-xl text-red-200 text-sm"></div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center py-10 border-t border-white/10 text-gray-500 text-sm">
+        &copy; 2025 GeminiNexus. Powered by Google Gemini.
+    </footer>
+
+    <script>
+        const submitBtn = document.getElementById('submit-btn');
+        const userInput = document.getElementById('user-input');
+        const apiKeyInput = document.getElementById('api-key');
+        const aiResponse = document.getElementById('ai-response');
+        const resultContainer = document.getElementById('result-container');
+        const loading = document.getElementById('loading');
+        const errorBox = document.getElementById('error-box');
+
+        async function generateContent() {
+            const prompt = userInput.value;
+            const apiKey = apiKeyInput.value;
+
+            if (!apiKey) {
+                showError("Please enter your API Key first.");
+                return;
+            }
+            if (!prompt) {
+                showError("Please enter a prompt.");
+                return;
+            }
+
+            // Reset UI
+            errorBox.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            loading.classList.remove('hidden');
+            submitBtn.disabled = true;
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            let retries = 0;
+            const maxRetries = 5;
+
+            async function makeRequest() {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error?.message || "Failed to connect to API");
+                    }
+
+                    const data = await response.json();
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (text) {
+                        aiResponse.textContent = text;
+                        resultContainer.classList.remove('hidden');
+                    } else {
+                        throw new Error("No response generated.");
+                    }
+                } catch (err) {
+                    if (retries < maxRetries) {
+                        const delay = Math.pow(2, retries) * 1000;
+                        retries++;
+                        setTimeout(makeRequest, delay);
+                    } else {
+                        showError(err.message);
+                    }
+                } finally {
+                    loading.classList.add('hidden');
+                    submitBtn.disabled = false;
+                }
+            }
+
+            makeRequest();
+        }
+
+        function showError(msg) {
+            errorBox.textContent = msg;
+            errorBox.classList.remove('hidden');
+            loading.classList.add('hidden');
+            submitBtn.disabled = false;
+        }
+
+        submitBtn.addEventListener('click', generateContent);
+    </script>
+</body>
+</html>
